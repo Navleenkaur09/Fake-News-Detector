@@ -1,0 +1,324 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Fake News Detection System API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: predict
+    description: News prediction operations
+  - name: dashboard
+    description: Dashboard and statistics operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /predict:
+    post:
+      operationId: predictNews
+      tags: [predict]
+      summary: Predict if news is real or fake
+      description: Analyzes a news article or headline and returns a real/fake prediction with confidence and explanation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PredictInput"
+      responses:
+        "200":
+          description: Prediction result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictionResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /predictions/history:
+    get:
+      operationId: getPredictionHistory
+      tags: [predict]
+      summary: Get recent prediction history
+      description: Returns recent predictions made by users
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of past predictions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PredictionRecord"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get model and dataset statistics
+      description: Returns model accuracy, precision, recall, F1, dataset info
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/distribution:
+    get:
+      operationId: getClassDistribution
+      tags: [dashboard]
+      summary: Get class distribution data
+      description: Returns real vs fake counts for chart display
+      responses:
+        "200":
+          description: Distribution data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassDistribution"
+
+  /dashboard/model-comparison:
+    get:
+      operationId: getModelComparison
+      tags: [dashboard]
+      summary: Get model accuracy comparison
+      description: Returns accuracy scores for multiple ML models
+      responses:
+        "200":
+          description: Model comparison data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ModelScore"
+
+  /dashboard/confusion-matrix:
+    get:
+      operationId: getConfusionMatrix
+      tags: [dashboard]
+      summary: Get confusion matrix data
+      description: Returns confusion matrix for best performing model
+      responses:
+        "200":
+          description: Confusion matrix data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfusionMatrix"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    PredictInput:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 10
+          description: News article or headline to analyze
+
+    PredictionResult:
+      type: object
+      required:
+        - label
+        - confidence
+        - realProbability
+        - fakeProbability
+        - processingTimeMs
+        - explanation
+        - keyWords
+      properties:
+        label:
+          type: string
+          enum: [REAL, FAKE]
+        confidence:
+          type: number
+          description: Confidence percentage (0-100)
+        realProbability:
+          type: number
+          description: Probability of being real (0-1)
+        fakeProbability:
+          type: number
+          description: Probability of being fake (0-1)
+        processingTimeMs:
+          type: number
+          description: Time taken to process in milliseconds
+        explanation:
+          type: string
+          description: Human-readable explanation of the prediction
+        keyWords:
+          type: array
+          items:
+            $ref: "#/components/schemas/KeyWord"
+        aiPowered:
+          type: boolean
+          description: Whether the result was produced by the AI model (true) or the rule-based fallback (false)
+
+    KeyWord:
+      type: object
+      required:
+        - word
+        - score
+        - sentiment
+      properties:
+        word:
+          type: string
+        score:
+          type: number
+          description: Influence score (0-1)
+        sentiment:
+          type: string
+          enum: [positive, negative, neutral]
+
+    PredictionRecord:
+      type: object
+      required:
+        - id
+        - text
+        - label
+        - confidence
+        - createdAt
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+        label:
+          type: string
+          enum: [REAL, FAKE]
+        confidence:
+          type: number
+        createdAt:
+          type: string
+
+    DashboardStats:
+      type: object
+      required:
+        - datasetSize
+        - realCount
+        - fakeCount
+        - modelName
+        - accuracy
+        - precision
+        - recall
+        - f1Score
+        - totalPredictions
+      properties:
+        datasetSize:
+          type: integer
+        realCount:
+          type: integer
+        fakeCount:
+          type: integer
+        modelName:
+          type: string
+        accuracy:
+          type: number
+        precision:
+          type: number
+        recall:
+          type: number
+        f1Score:
+          type: number
+        totalPredictions:
+          type: integer
+
+    ClassDistribution:
+      type: object
+      required:
+        - real
+        - fake
+      properties:
+        real:
+          type: integer
+        fake:
+          type: integer
+
+    ModelScore:
+      type: object
+      required:
+        - name
+        - accuracy
+        - precision
+        - recall
+        - f1Score
+      properties:
+        name:
+          type: string
+        accuracy:
+          type: number
+        precision:
+          type: number
+        recall:
+          type: number
+        f1Score:
+          type: number
+
+    ConfusionMatrix:
+      type: object
+      required:
+        - truePositive
+        - trueNegative
+        - falsePositive
+        - falseNegative
+      properties:
+        truePositive:
+          type: integer
+        trueNegative:
+          type: integer
+        falsePositive:
+          type: integer
+        falseNegative:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string

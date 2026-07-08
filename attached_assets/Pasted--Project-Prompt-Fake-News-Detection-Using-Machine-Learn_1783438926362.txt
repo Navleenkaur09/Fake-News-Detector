@@ -1,0 +1,127 @@
+# Project Prompt: Fake News Detection Using Machine Learning and NLP
+
+Build a modern web application named **"Fake News Detection System"** using **Python, Flask, Scikit-learn, HTML, CSS, JavaScript, and Bootstrap**.
+
+## Project Objective
+
+The system should detect whether a news article is **Real** or **Fake** by applying **Natural Language Processing (NLP)** and a **Machine Learning model**. The user will paste a news article or headline into a text box, and the application will instantly classify it.
+
+## Machine Learning Requirements
+
+* Use a labeled Fake News dataset containing news articles and their labels (Real/Fake).
+* Perform text preprocessing:
+
+  * Convert text to lowercase
+  * Remove punctuation and special characters
+  * Remove stop words
+  * Tokenize text
+  * Apply stemming or lemmatization
+* Convert text into numerical features using **TF-IDF Vectorization**.
+* Train and compare multiple machine learning models:
+
+  * Logistic Regression
+  * Naive Bayes
+  * Passive Aggressive Classifier
+  * Random Forest (optional)
+* Automatically select and save the best-performing model.
+* Save both the trained model and the TF-IDF vectorizer using Pickle.
+
+## Web Application Features
+
+Create a responsive and professional web interface with the following pages:
+
+### Home Page
+
+* Project title and description
+* Navigation bar
+* "Detect Fake News" button
+* Attractive hero section
+
+### Prediction Page
+
+* Large text area where users can paste a news article or headline
+* Predict button
+* Reset/Clear button
+
+### Prediction Result
+
+Display:
+
+* Prediction (Real News or Fake News)
+* Confidence percentage
+* Probability score
+* Processing time
+* Color-coded result (Green for Real, Red for Fake)
+
+### Dashboard
+
+Display model information:
+
+* Dataset size
+* Number of Real news samples
+* Number of Fake news samples
+* Model used
+* Model accuracy
+* Precision
+* Recall
+* F1 Score
+
+Show charts such as:
+
+* Class distribution
+* Model accuracy comparison
+* Confusion matrix
+
+## Explainable AI
+
+Provide a simple explanation of why the prediction was made by highlighting important words or phrases that influenced the model. Include a brief note explaining the prediction in user-friendly language.
+
+## User Experience
+
+* Responsive design for desktop and mobile
+* Modern Bootstrap interface
+* Loading spinner while prediction is running
+* Smooth animations
+* Dark and light mode toggle
+* Clean and intuitive layout
+
+## Project Structure
+
+Generate a well-organized project with:
+
+* app.py
+* train_model.py
+* requirements.txt
+* model.pkl
+* tfidf_vectorizer.pkl
+* dataset/
+* templates/
+* static/
+* README.md
+
+## Technologies
+
+* Python
+* Flask
+* Scikit-learn
+* Pandas
+* NumPy
+* NLTK
+* HTML
+* CSS
+* JavaScript
+* Bootstrap
+* Chart.js
+
+## Future Enhancements
+
+Design the project so it can later support:
+
+* Multilingual fake news detection
+* URL-based news analysis
+* PDF and DOCX news upload
+* Real-time news verification
+* Integration with external fact-checking APIs
+* User login and prediction history
+
+The application should be production-ready, well-structured, visually appealing, easy to understand, and suitable for a final-year college project demonstration.
