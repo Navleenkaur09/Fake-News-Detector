@@ -37,7 +37,7 @@ const clientPath = path.resolve(import.meta.dirname, "../../fake-news-detector/d
 app.use(express.static(clientPath));
 
 // Fallback all non-API routes to index.html for React Router
-app.get("*", (req, res, next) => {
+app.use((req, res, next) => {
   if (req.path.startsWith("/api")) {
     next();
   } else {
