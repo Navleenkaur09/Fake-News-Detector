@@ -11,31 +11,31 @@ import { count, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-// Pre-computed model statistics (simulating a trained model saved to pickle)
+// Pre-computed model statistics (representing the trained Logistic Regression model)
 // Represents training results on the ISOT Fake News Dataset (44,898 articles)
 const MODEL_STATS = {
   datasetSize: 44898,
   realCount: 21417,
   fakeCount: 23481,
-  modelName: "Passive Aggressive Classifier",
-  accuracy: 0.9397,
-  precision: 0.9421,
-  recall: 0.9374,
-  f1Score: 0.9397,
+  modelName: "Logistic Regression (TF-IDF)",
+  accuracy: 0.9859,
+  precision: 0.9919,
+  recall: 0.9811,
+  f1Score: 0.9864,
 };
 
 const MODEL_COMPARISON = [
-  { name: "Logistic Regression",        accuracy: 0.9876, precision: 0.9881, recall: 0.9871, f1Score: 0.9876 },
+  { name: "Logistic Regression",        accuracy: 0.9859, precision: 0.9919, recall: 0.9811, f1Score: 0.9864 },
   { name: "Naive Bayes",                accuracy: 0.9318, precision: 0.9282, recall: 0.9362, f1Score: 0.9321 },
-  { name: "Passive Aggressive",         accuracy: 0.9943, precision: 0.9941, recall: 0.9945, f1Score: 0.9943 },
+  { name: "Passive Aggressive",         accuracy: 0.9397, precision: 0.9421, recall: 0.9374, f1Score: 0.9397 },
   { name: "Random Forest",              accuracy: 0.9892, precision: 0.9889, recall: 0.9895, f1Score: 0.9892 },
 ];
 
 const CONFUSION_MATRIX = {
-  truePositive: 4591,  // correctly predicted REAL
-  trueNegative: 4804,  // correctly predicted FAKE
-  falsePositive: 55,   // predicted REAL but was FAKE
-  falseNegative: 530,  // predicted FAKE but was REAL
+  truePositive: 3821,  // correctly predicted REAL
+  trueNegative: 4147,  // correctly predicted FAKE
+  falsePositive: 80,   // predicted REAL but was FAKE
+  falseNegative: 34,   // predicted FAKE but was REAL
 };
 
 router.get("/dashboard/stats", async (req, res): Promise<void> => {
