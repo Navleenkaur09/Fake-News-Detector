@@ -79,7 +79,34 @@ export async function analyzeNewsWithAI(text: string): Promise<Omit<AnalysisResu
   const client = getClient();
 
   if (!client) {
-    // No API key — use rule-based fallback
+    // Attempt to query the local Python Flask inference server (ML-powered)
+    const pythonServerUrl = process.env.PYTHON_SERVER_URL || "http://localhost:5000";
+    try {
+      const response = await fetch(`${pythonServerUrl}/api/predict`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text }),
+      });
+      if (response.ok) {
+        const data = await response.json() as any;
+        return {
+          label: data.label,
+          confidence: data.confidence,
+          realProbability: data.realProbability,
+          fakeProbability: data.fakeProbability,
+          explanation: data.explanation,
+          summary: data.summary,
+          keyWords: data.keyWords,
+          aiPowered: true,
+        };
+      }
+    } catch (err) {
+      console.warn(`[ai-analyzer] Python inference server not active at ${pythonServerUrl}. Falling back to rule-based simulation.`);
+    }
+
+    // No API key and Python server not active — use rule-based fallback
     const result = analyzeNews(text);
     return { ...result, aiPowered: false };
   }

@@ -10,10 +10,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-MODEL_DIR = Path("../artifacts/model")
-if not MODEL_DIR.exists():
-    MODEL_DIR = Path("artifacts/model")
-
+MODEL_DIR = Path("artifacts/model")
 MODEL_FILE = MODEL_DIR / "fake_news_model.joblib"
 
 # Load the trained model pipeline
