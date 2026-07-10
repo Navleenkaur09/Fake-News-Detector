@@ -4,13 +4,7 @@ import { logger } from "./lib/logger";
 
 dotenv.config();
 
-const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
+const rawPort = process.env["PORT"] || "4000";
 
 const port = Number(rawPort);
 

@@ -80,8 +80,8 @@ def train_and_save_model(dataset: pd.DataFrame) -> tuple[Pipeline, pd.DataFrame]
     dataset_out = X_test.to_frame().copy()
     dataset_out["true_label"] = y_test.values
     dataset_out["predicted_label"] = y_pred
-    dataset_out["real_probability"] = np.round(y_proba[:, 0] * 100, 2)
-    dataset_out["fake_probability"] = np.round(y_proba[:, 1] * 100, 2)
+    dataset_out["fake_probability"] = np.round(y_proba[:, 0] * 100, 2)
+    dataset_out["real_probability"] = np.round(y_proba[:, 1] * 100, 2)
     dataset_out["explanation"] = dataset_out["predicted_label"].apply(
         lambda label: (
             "This article shows patterns typical of fake news: sensational phrasing, unverified claims, or opinionated language."
@@ -126,9 +126,9 @@ def explain_prediction(text: str, pipeline: Pipeline, top_n: int = 4) -> str:
     feature_scores = values * coefs
 
     if label == "Fake":
-        contribution_index = np.argsort(-feature_scores)
-    else:
         contribution_index = np.argsort(feature_scores)
+    else:
+        contribution_index = np.argsort(-feature_scores)
 
     term_candidates = [feature_names[i] for i in contribution_index if values[i] > 0]
     term_candidates = term_candidates[:top_n]
@@ -167,8 +167,8 @@ def generate_prediction_record(text: str, pipeline: Pipeline) -> dict:
     full_text = text.strip()
     probabilities = pipeline.predict_proba([full_text])[0]
     predicted_label = pipeline.predict([full_text])[0]
-    real_probability = float(np.round(probabilities[0] * 100, 2))
-    fake_probability = float(np.round(probabilities[1] * 100, 2))
+    fake_probability = float(np.round(probabilities[0] * 100, 2))
+    real_probability = float(np.round(probabilities[1] * 100, 2))
     explanation = explain_prediction(full_text, pipeline)
     summary = summarize_text(full_text, max_sentences=3)
 
