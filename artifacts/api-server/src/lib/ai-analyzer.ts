@@ -5,7 +5,7 @@
 
 import OpenAI from "openai";
 import type { AnalysisResult } from "./nlp-analyzer.js";
-import { analyzeNews } from "./nlp-analyzer.js";
+import { analyzeNews, summarizeText } from "./nlp-analyzer.js";
 
 let openaiClient: OpenAI | null = null;
 
@@ -102,6 +102,7 @@ export async function analyzeNewsWithAI(text: string): Promise<Omit<AnalysisResu
     if (!content) throw new Error("Empty response from OpenAI");
 
     const ai = parseAIResponse(content);
+    const summary = summarizeText(truncated, 3);
 
     return {
       label: ai.label,
@@ -109,6 +110,7 @@ export async function analyzeNewsWithAI(text: string): Promise<Omit<AnalysisResu
       realProbability: ai.realProbability,
       fakeProbability: ai.fakeProbability,
       explanation: ai.explanation,
+      summary,
       keyWords: ai.keyWords,
       aiPowered: true,
     };
@@ -116,6 +118,6 @@ export async function analyzeNewsWithAI(text: string): Promise<Omit<AnalysisResu
     // Fallback to rule-based on any API error
     console.error("[ai-analyzer] OpenAI call failed, falling back to NLP:", err);
     const result = analyzeNews(text);
-    return { ...result, aiPowered: false };
+    return { ...result, summary: summarizeText(text, 3), aiPowered: false };
   }
 }

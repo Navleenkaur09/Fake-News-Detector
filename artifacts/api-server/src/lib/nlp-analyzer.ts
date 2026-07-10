@@ -70,7 +70,26 @@ export interface AnalysisResult {
   fakeProbability: number;
   processingTimeMs: number;
   explanation: string;
+  summary: string;
   keyWords: KeyWord[];
+}
+
+export function summarizeText(text: string, maxSentences = 2): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "No content to summarize.";
+  }
+
+  const sentences = normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  if (sentences.length === 0) {
+    return normalized.slice(0, 280).trim();
+  }
+
+  return sentences.slice(0, Math.min(maxSentences, sentences.length)).join(" ");
 }
 
 function preprocess(text: string): string[] {
@@ -246,6 +265,7 @@ export function analyzeNews(text: string): Omit<AnalysisResult, "processingTimeM
 
   const keyWords = buildKeyWords(fakeResult.matches, realResult.matches, tokens);
   const explanation = buildExplanation(label, clampedConfidence, fakeResult.matches, realResult.matches);
+  const summary = summarizeText(text, 3);
 
   return {
     label,
@@ -253,6 +273,7 @@ export function analyzeNews(text: string): Omit<AnalysisResult, "processingTimeM
     realProbability: Math.round(realProbability * 1000) / 1000,
     fakeProbability: Math.round(fakeProbability * 1000) / 1000,
     explanation,
+    summary,
     keyWords,
   };
 }

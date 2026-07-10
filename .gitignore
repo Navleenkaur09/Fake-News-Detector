@@ -36,6 +36,9 @@ npm-debug.log
 yarn-error.log
 testem.log
 /typings
+.env
+artifacts/api-server/.env
+artifacts/fake-news-detector/.env
 
 # System Files
 .DS_Store

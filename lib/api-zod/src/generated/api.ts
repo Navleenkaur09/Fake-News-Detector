@@ -36,6 +36,7 @@ export const PredictNewsResponse = zod.object({
   "fakeProbability": zod.number().describe('Probability of being fake (0-1)'),
   "processingTimeMs": zod.number().describe('Time taken to process in milliseconds'),
   "explanation": zod.string().describe('Human-readable explanation of the prediction'),
+  "summary": zod.string().describe('Short summary of the news article and whether it is likely correct or not'),
   "keyWords": zod.array(zod.object({
   "word": zod.string(),
   "score": zod.number().describe('Influence score (0-1)'),

@@ -1,0 +1,8 @@
+Flask
+pandas
+numpy
+scikit-learn
+nltk
+joblib
+matplotlib
+limepip install -r requirements.txt

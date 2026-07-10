@@ -11,6 +11,7 @@ export const predictionsTable = pgTable("predictions", {
   fakeProbability: real("fake_probability").notNull(),
   processingTimeMs: real("processing_time_ms").notNull(),
   explanation: text("explanation").notNull(),
+  summary: text("summary").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

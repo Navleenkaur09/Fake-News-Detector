@@ -53,6 +53,8 @@ export interface PredictionResult {
   processingTimeMs: number;
   /** Human-readable explanation of the prediction */
   explanation: string;
+  /** Short summary of the news article and whether it is likely correct or not */
+  summary: string;
   keyWords: KeyWord[];
   /** Whether the result was produced by the AI model (true) or the rule-based fallback (false) */
   aiPowered?: boolean;

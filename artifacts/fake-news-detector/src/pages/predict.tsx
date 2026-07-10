@@ -168,18 +168,28 @@ export default function Predict() {
                       <div>
                         <div className="flex justify-between text-sm mb-1.5 font-medium">
                           <span className="text-success">REAL Probability</span>
-                          <span>{isFake ? "0.0%" : "100%"}</span>
+                          <span>{(result.realProbability * 100).toFixed(1)}%</span>
                         </div>
-                        <Progress value={isFake ? 0 : 100} className="h-2 [&>div]:bg-success bg-success/20" />
+                        <Progress value={result.realProbability * 100} className="h-2 [&>div]:bg-success bg-success/20" />
                       </div>
                       
                       <div>
                         <div className="flex justify-between text-sm mb-1.5 font-medium">
                           <span className="text-destructive">FAKE Probability</span>
-                          <span>{isFake ? "100%" : "0.0%"}</span>
+                          <span>{(result.fakeProbability * 100).toFixed(1)}%</span>
                         </div>
-                        <Progress value={isFake ? 100 : 0} className="h-2 [&>div]:bg-destructive bg-destructive/20" />
+                        <Progress value={result.fakeProbability * 100} className="h-2 [&>div]:bg-destructive bg-destructive/20" />
                       </div>
+                    </div>
+
+                    <div className="rounded-md bg-muted/50 p-4 border border-border/50">
+                      <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        Summary
+                      </h4>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {result.summary}
+                      </p>
                     </div>
 
                     {(() => {

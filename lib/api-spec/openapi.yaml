@@ -190,6 +190,9 @@ components:
         explanation:
           type: string
           description: Human-readable explanation of the prediction
+        summary:
+          type: string
+          description: Short summary of the news article and whether it is likely correct or not
         keyWords:
           type: array
           items:

@@ -41,7 +41,8 @@ const CONFUSION_MATRIX = {
 router.get("/dashboard/stats", async (req, res): Promise<void> => {
   let totalPredictions = 0;
   try {
-    const [row] = await db.select({ count: count() }).from(predictionsTable);
+    const rows = await db.select({ count: count() }).from(predictionsTable) as Array<{ count: number }>;
+    const row = rows[0];
     totalPredictions = Number(row?.count ?? 0);
   } catch (err) {
     req.log.warn({ err }, "Could not fetch prediction count");
