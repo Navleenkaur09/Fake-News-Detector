@@ -8,6 +8,13 @@ import { Navbar } from '@/components/navbar';
 import Home from '@/pages/home';
 import Predict from '@/pages/predict';
 import Dashboard from '@/pages/dashboard';
+import { setBaseUrl } from '@workspace/api-client-react';
+
+const isProduction = import.meta.env.PROD;
+const apiBaseUrl = isProduction 
+  ? "https://veritas-web-app.onrender.com" 
+  : "";
+setBaseUrl(apiBaseUrl);
 
 const queryClient = new QueryClient({
   defaultOptions: {
