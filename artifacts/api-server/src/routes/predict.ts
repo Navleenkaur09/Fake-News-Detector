@@ -45,6 +45,8 @@ async function scrapeUrl(url: string): Promise<string> {
   return text;
 }
 
+const predictionCache = new Map<string, any>();
+
 router.post("/predict", async (req, res): Promise<void> => {
   const parsed = PredictNewsBody.safeParse(req.body);
   if (!parsed.success) {
@@ -55,7 +57,19 @@ router.post("/predict", async (req, res): Promise<void> => {
   const { text } = parsed.data;
   const start = Date.now();
 
-  let textToAnalyze = text.trim();
+  const originalInput = text.trim();
+
+  // Return cached result if available to save API quota
+  if (predictionCache.has(originalInput)) {
+    const cached = predictionCache.get(originalInput);
+    res.json({
+      ...cached,
+      processingTimeMs: Date.now() - start,
+    });
+    return;
+  }
+
+  let textToAnalyze = originalInput;
   const isUrl = /^https?:\/\/[^\s]+$/i.test(textToAnalyze);
 
   if (isUrl) {
@@ -65,6 +79,16 @@ router.post("/predict", async (req, res): Promise<void> => {
       res.status(400).json({ error: `Failed to load article from URL: ${err.message}` });
       return;
     }
+  }
+
+  // Double cache check for scraped URL content
+  if (isUrl && predictionCache.has(textToAnalyze)) {
+    const cached = predictionCache.get(textToAnalyze);
+    res.json({
+      ...cached,
+      processingTimeMs: Date.now() - start,
+    });
+    return;
   }
 
   const analysis = await analyzeNewsWithAI(textToAnalyze);
@@ -91,6 +115,12 @@ router.post("/predict", async (req, res): Promise<void> => {
     processingTimeMs,
     aiPowered: analysis.aiPowered,
   });
+
+  // Save to cache
+  predictionCache.set(originalInput, result);
+  if (isUrl) {
+    predictionCache.set(textToAnalyze, result);
+  }
 
   res.json(result);
 });

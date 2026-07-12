@@ -759,6 +759,8 @@ HTML_TEMPLATE = """
 </html>
 """
 
+prediction_cache = {}
+
 @app.route("/")
 def home():
     return render_template_string(HTML_TEMPLATE)
@@ -773,7 +775,11 @@ def predict():
     if len(text.strip()) < 10:
         return jsonify({"error": "Text must be at least 10 characters long"}), 400
         
-    text_to_analyze = text.strip()
+    original_input = text.strip()
+    if original_input in prediction_cache:
+        return jsonify(prediction_cache[original_input])
+        
+    text_to_analyze = original_input
     is_url = re.match(r"^https?://[^\s]+$", text_to_analyze, re.IGNORECASE)
     
     if is_url:
@@ -782,13 +788,16 @@ def predict():
         except Exception as e:
             return jsonify({"error": f"Failed to load article from URL: {str(e)}"}), 400
 
+    if is_url and text_to_analyze in prediction_cache:
+        return jsonify(prediction_cache[text_to_analyze])
+
     # 1. Attempt Gemini API
     gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if gemini_key:
         try:
             res_data = analyze_with_gemini(text_to_analyze, gemini_key)
             summary = summarize_text(text_to_analyze, max_sentences=3)
-            return jsonify({
+            res_json = {
                 "label": res_data["label"],
                 "confidence": res_data["confidence"],
                 "realProbability": res_data["realProbability"],
@@ -799,7 +808,11 @@ def predict():
                 "keyWords": res_data["keyWords"],
                 "aiPowered": True,
                 "engine": "Google Gemini 3.5 Flash"
-            })
+            }
+            prediction_cache[original_input] = res_json
+            if is_url:
+                prediction_cache[text_to_analyze] = res_json
+            return jsonify(res_json)
         except Exception as e:
             print(f"[app.py] Gemini inference failed, falling back: {e}")
 
@@ -819,7 +832,7 @@ def predict():
             explanation = generate_explanation(label, confidence, keywords)
             summary = summarize_text(text_to_analyze, max_sentences=3)
             
-            return jsonify({
+            res_json = {
                 "label": label,
                 "confidence": confidence,
                 "realProbability": round(real_probability, 3),
@@ -830,14 +843,18 @@ def predict():
                 "keyWords": keywords,
                 "aiPowered": True,
                 "engine": "Local ML Model (Passive-Aggressive)"
-            })
+            }
+            prediction_cache[original_input] = res_json
+            if is_url:
+                prediction_cache[text_to_analyze] = res_json
+            return jsonify(res_json)
         except Exception as e:
             print(f"[app.py] Local model inference error: {e}")
 
     # 3. Fallback to Rule-based NLP analysis
     rule_data = analyze_with_rules(text_to_analyze)
     summary = summarize_text(text_to_analyze, max_sentences=3)
-    return jsonify({
+    res_json = {
         "label": rule_data["label"],
         "confidence": rule_data["confidence"],
         "realProbability": rule_data["realProbability"],
@@ -848,7 +865,11 @@ def predict():
         "keyWords": rule_data["keyWords"],
         "aiPowered": False,
         "engine": "Rule-Based Heuristic Fallback"
-    })
+    }
+    prediction_cache[original_input] = res_json
+    if is_url:
+        prediction_cache[text_to_analyze] = res_json
+    return jsonify(res_json)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
