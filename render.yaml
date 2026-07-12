@@ -8,6 +8,8 @@ services:
     envVars:
       - key: PORT
         value: 5000
+      - key: GEMINI_API_KEY
+        sync: false
 
   # 2. Node.js Express API & Static Web Server
   - type: web
@@ -27,6 +29,8 @@ services:
         fromService:
           name: veritas-python-ml
           property: host
+      - key: GEMINI_API_KEY
+        sync: false
 
 databases:
   - name: veritas-db

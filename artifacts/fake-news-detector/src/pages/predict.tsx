@@ -115,7 +115,8 @@ export default function Predict() {
                     <div>
                       <h4 className="font-semibold text-destructive">Analysis Failed</h4>
                       <p className="text-sm text-destructive/90 mt-1">
-                        {(predictMutation.error as any)?.response?.data?.error || 
+                        {(predictMutation.error as any)?.data?.error ||
+                         (predictMutation.error as any)?.response?.data?.error || 
                          (predictMutation.error as any)?.message || 
                          "There was an error processing your request. Please try again."}
                       </p>
