@@ -86,6 +86,11 @@ def analyze_with_gemini(text, api_key):
                 ]
             }
         ],
+        "tools": [
+            {
+                "google_search": {}
+            }
+        ],
         "systemInstruction": {
             "parts": [
                 {

@@ -98,6 +98,11 @@ async function analyzeWithGemini(text: string, apiKey: string): Promise<AIRespon
           ],
         },
       ],
+      tools: [
+        {
+          google_search: {},
+        },
+      ],
       systemInstruction: {
         parts: [
           {
