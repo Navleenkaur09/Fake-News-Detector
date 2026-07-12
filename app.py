@@ -2,6 +2,8 @@ import os
 import re
 import json
 from pathlib import Path
+import urllib.request
+import urllib.error
 import joblib
 import numpy as np
 from flask import Flask, request, jsonify, render_template_string
@@ -10,10 +12,25 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
+# Load environment variables manually from .env if it exists
+def load_dotenv():
+    env_file = Path(".env")
+    if env_file.exists():
+        with open(env_file, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    key, val = line.split("=", 1)
+                    os.environ[key.strip()] = val.strip()
+
+load_dotenv()
+
 MODEL_DIR = Path("artifacts/model")
 MODEL_FILE = MODEL_DIR / "fake_news_model.joblib"
 
-# Load the trained model pipeline
+# Load the trained model pipeline (optional fallback)
 pipeline = None
 if MODEL_FILE.exists():
     try:
@@ -22,7 +39,183 @@ if MODEL_FILE.exists():
     except Exception as e:
         print(f"[app.py] Error loading model: {e}")
 else:
-    print(f"[app.py] Warning: Model file not found at {MODEL_FILE}. Please train the model first.")
+    print(f"[app.py] Warning: Model file not found at {MODEL_FILE}. Will default to Gemini API or rule-based NLP.")
+
+SYSTEM_PROMPT = """You are an expert fact-checker and computational linguist specializing in detecting misinformation and fake news. Analyze the provided news article or excerpt and determine whether it is REAL or FAKE news.
+
+Evaluate based on:
+1. Sensationalism and emotional manipulation
+2. Credible source attribution (named officials, institutions, studies)
+3. Verifiable claims vs. vague assertions
+4. Journalistic writing standards (balanced framing, specific facts, dates)
+5. Conspiracy framing, clickbait patterns, or viral bait language
+6. Factual consistency and plausibility
+
+Respond ONLY with a valid JSON object matching this exact schema — no markdown, no prose:
+{
+  "label": "REAL" | "FAKE",
+  "confidence": <number 50.0–99.5>,
+  "realProbability": <number 0.0–1.0>,
+  "fakeProbability": <number 0.0–1.0>,
+  "explanation": "<sentence 1-2: reason for the verdict, citing specific language patterns found>\\n\\n<sentence 3-4: actionable recommendation — what the reader should do, e.g. verify sources, safe to share, cross-check claims>",
+  "keyWords": [
+    { "word": "<word or phrase>", "score": <0.0–1.0>, "sentiment": "positive" | "negative" | "neutral" }
+  ]
+}
+
+Rules:
+- realProbability + fakeProbability must equal 1.0
+- confidence must equal round(max(realProbability, fakeProbability) * 100, 1)
+- keyWords: 8–15 entries, mix of fake signals (negative), real signals (positive), and topic words (neutral)
+- explanation must reference specific phrases or patterns found in the text"""
+
+def analyze_with_gemini(text, api_key):
+    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    
+    truncated = text[:8000] if len(text) > 8000 else text
+    
+    body = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": truncated
+                    }
+                ]
+            }
+        ],
+        "systemInstruction": {
+            "parts": [
+                {
+                    "text": SYSTEM_PROMPT
+                }
+            ]
+        },
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "responseSchema": {
+                "type": "OBJECT",
+                "properties": {
+                    "label": { "type": "STRING", "enum": ["REAL", "FAKE"] },
+                    "confidence": { "type": "NUMBER" },
+                    "realProbability": { "type": "NUMBER" },
+                    "fakeProbability": { "type": "NUMBER" },
+                    "explanation": { "type": "STRING" },
+                    "keyWords": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "word": { "type": "STRING" },
+                                "score": { "type": "NUMBER" },
+                                "sentiment": { "type": "STRING", "enum": ["positive", "negative", "neutral"] }
+                            },
+                            "required": ["word", "score", "sentiment"]
+                        }
+                    }
+                },
+                "required": ["label", "confidence", "realProbability", "fakeProbability", "explanation", "keyWords"]
+            }
+        }
+    }
+    
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    
+    with urllib.request.urlopen(req) as res:
+        resp_data = json.loads(res.read().decode("utf-8"))
+        content = resp_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+        cleaned = content.replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(cleaned)
+        
+        parsed["confidence"] = min(max(float(parsed.get("confidence", 50.0)), 50.0), 99.5)
+        parsed["realProbability"] = min(max(float(parsed.get("realProbability", 0.5)), 0.0), 1.0)
+        parsed["fakeProbability"] = min(max(float(parsed.get("fakeProbability", 0.5)), 0.0), 1.0)
+        return parsed
+
+def analyze_with_rules(text):
+    text_lower = text.lower()
+    
+    # Simple rule based indicators
+    fake_indicators = ["shocking", "unbelievable", "secret", "exposed", "conspiracy", "mainstream media", "won't believe", "miracle", "anonymous source", "rumor", "leak"]
+    real_indicators = ["according to", "spokesperson", "reuters", "associated press", "announced", "published in", "officials stated", "study shows", "confirmed by", "reported that"]
+    
+    fake_count = sum(1 for w in fake_indicators if w in text_lower)
+    real_count = sum(1 for w in real_indicators if w in text_lower)
+    
+    total = fake_count + real_count
+    if total == 0:
+        fake_probability = 0.5
+        real_probability = 0.5
+    else:
+        fake_probability = fake_count / total
+        real_probability = real_count / total
+        
+    if fake_probability > real_probability:
+        label = "FAKE"
+        confidence = round(fake_probability * 100, 1)
+    else:
+        label = "REAL"
+        confidence = round(real_probability * 100, 1)
+        
+    confidence = min(max(confidence, 50.0), 99.5)
+    
+    keywords = []
+    for w in fake_indicators:
+        if w in text_lower:
+            keywords.append({"word": w, "score": 0.8, "sentiment": "negative"})
+    for w in real_indicators:
+        if w in text_lower:
+            keywords.append({"word": w, "score": 0.8, "sentiment": "positive"})
+            
+    if not keywords:
+        keywords = [{"word": "neutral-terms", "score": 0.5, "sentiment": "neutral"}]
+        
+    explanation = (
+        f"This is a rule-based NLP fallback analysis. "
+        f"We found {fake_count} fake indicators and {real_count} real indicators in the text.\\n\\n"
+        "To get real-time AI-powered news detection, please configure a Gemini API key in your .env file."
+    )
+    
+    return {
+        "label": label,
+        "confidence": confidence,
+        "realProbability": round(real_probability, 3),
+        "fakeProbability": round(fake_probability, 3),
+        "explanation": explanation,
+        "keyWords": keywords[:10]
+    }
+
+def extract_text_from_url(url):
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+        }
+    )
+    with urllib.request.urlopen(req, timeout=10) as res:
+        html = res.read().decode("utf-8", errors="ignore")
+        
+    text = re.sub(r"<script[^>]*>[\s\S]*?</script>", "", html, flags=re.IGNORECASE)
+    text = re.sub(r"<style[^>]*>[\s\S]*?</style>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<header[^>]*>[\s\S]*?</header>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<footer[^>]*>[\s\S]*?</footer>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<nav[^>]*>[\s\S]*?</nav>", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    
+    text = text.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", '"').replace("&#39;", "'").replace("&nbsp;", " ")
+    
+    if len(text) < 50:
+        raise ValueError("Could not extract sufficient text content from the webpage.")
+    return text
 
 def summarize_text(text, max_sentences=3):
     text = re.sub(r"\s+", " ", text).strip()
@@ -392,12 +585,12 @@ HTML_TEMPLATE = """
     <div class="container">
         <header>
             <h1>Veritas Analysis Terminal</h1>
-            <p class="subtitle">Evaluate news authenticity with the trained passive-aggressive model</p>
+            <p class="subtitle">Evaluate news authenticity in real-time with Google Gemini AI</p>
         </header>
 
         <main>
             <div class="input-group">
-                <textarea id="newsText" placeholder="Paste article content or headline here (minimum 10 characters)..."></textarea>
+                <textarea id="newsText" placeholder="Paste news content, headline, or article URL here..."></textarea>
             </div>
 
             <div class="btn-container">
@@ -455,7 +648,7 @@ HTML_TEMPLATE = """
     </div>
 
     <footer>
-        Veritas ML Engine &bull; Running on Flask &bull; Python 3
+        Veritas AI Engine &bull; Powered by Google Gemini &bull; Flask &bull; Python 3
     </footer>
 
     <script>
@@ -567,9 +760,6 @@ def home():
 
 @app.route("/api/predict", methods=["POST"])
 def predict():
-    if not pipeline:
-        return jsonify({"error": "Model is not loaded. Train the model first."}), 500
-        
     data = request.get_json()
     if not data or "text" not in data:
         return jsonify({"error": "Missing 'text' in request body"}), 400
@@ -578,39 +768,79 @@ def predict():
     if len(text.strip()) < 10:
         return jsonify({"error": "Text must be at least 10 characters long"}), 400
         
-    # Run prediction
-    try:
-        probabilities = pipeline.predict_proba([text])[0]
-        predicted_label = pipeline.predict([text])[0]
-        
-        # Scikit-learn orders classes alphabetically: ["Fake", "Real"]
-        # Index 0 is Fake probability, Index 1 is Real probability
-        fake_probability = float(probabilities[0])
-        real_probability = float(probabilities[1])
-        
-        # Format label to match Node backend schema ('REAL' / 'FAKE')
-        label = "FAKE" if predicted_label == "Fake" else "REAL"
-        confidence = round(max(real_probability, fake_probability) * 100, 1)
-        
-        # Get keyword importances
-        keywords = get_keywords_and_influence(text, pipeline)
-        explanation = generate_explanation(label, confidence, keywords)
-        summary = summarize_text(text, max_sentences=3)
-        
-        return jsonify({
-            "label": label,
-            "confidence": confidence,
-            "realProbability": round(real_probability, 3),
-            "fakeProbability": round(fake_probability, 3),
-            "processingTimeMs": 0,  # will be computed by gateway
-            "explanation": explanation,
-            "summary": summary,
-            "keyWords": keywords,
-            "aiPowered": True
-        })
-    except Exception as e:
-        print(f"[app.py] Inference error: {e}")
-        return jsonify({"error": f"Error running model prediction: {str(e)}"}), 500
+    text_to_analyze = text.strip()
+    is_url = re.match(r"^https?://[^\s]+$", text_to_analyze, re.IGNORECASE)
+    
+    if is_url:
+        try:
+            text_to_analyze = extract_text_from_url(text_to_analyze)
+        except Exception as e:
+            return jsonify({"error": f"Failed to load article from URL: {str(e)}"}), 400
+
+    # 1. Attempt Gemini API
+    gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if gemini_key:
+        try:
+            res_data = analyze_with_gemini(text_to_analyze, gemini_key)
+            summary = summarize_text(text_to_analyze, max_sentences=3)
+            return jsonify({
+                "label": res_data["label"],
+                "confidence": res_data["confidence"],
+                "realProbability": res_data["realProbability"],
+                "fakeProbability": res_data["fakeProbability"],
+                "processingTimeMs": 0,
+                "explanation": res_data["explanation"],
+                "summary": summary,
+                "keyWords": res_data["keyWords"],
+                "aiPowered": True
+            })
+        except Exception as e:
+            print(f"[app.py] Gemini inference failed, falling back: {e}")
+
+    # 2. Fallback to local model pipeline if available
+    if pipeline:
+        try:
+            probabilities = pipeline.predict_proba([text_to_analyze])[0]
+            predicted_label = pipeline.predict([text_to_analyze])[0]
+            
+            fake_probability = float(probabilities[0])
+            real_probability = float(probabilities[1])
+            
+            label = "FAKE" if predicted_label == "Fake" else "REAL"
+            confidence = round(max(real_probability, fake_probability) * 100, 1)
+            
+            keywords = get_keywords_and_influence(text_to_analyze, pipeline)
+            explanation = generate_explanation(label, confidence, keywords)
+            summary = summarize_text(text_to_analyze, max_sentences=3)
+            
+            return jsonify({
+                "label": label,
+                "confidence": confidence,
+                "realProbability": round(real_probability, 3),
+                "fakeProbability": round(fake_probability, 3),
+                "processingTimeMs": 0,
+                "explanation": explanation,
+                "summary": summary,
+                "keyWords": keywords,
+                "aiPowered": True
+            })
+        except Exception as e:
+            print(f"[app.py] Local model inference error: {e}")
+
+    # 3. Fallback to Rule-based NLP analysis
+    rule_data = analyze_with_rules(text_to_analyze)
+    summary = summarize_text(text_to_analyze, max_sentences=3)
+    return jsonify({
+        "label": rule_data["label"],
+        "confidence": rule_data["confidence"],
+        "realProbability": rule_data["realProbability"],
+        "fakeProbability": rule_data["fakeProbability"],
+        "processingTimeMs": 0,
+        "explanation": rule_data["explanation"],
+        "summary": summary,
+        "keyWords": rule_data["keyWords"],
+        "aiPowered": False
+    })
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

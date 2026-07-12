@@ -75,7 +75,101 @@ function parseAIResponse(content: string): AIResponse {
   return parsed;
 }
 
+async function analyzeWithGemini(text: string, apiKey: string): Promise<AIResponse> {
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  // Truncate to stay within token/char budget if needed, e.g., 8000 chars.
+  const truncated = text.length > 8000 ? text.slice(0, 8000) + "…" : text;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: truncated,
+            },
+          ],
+        },
+      ],
+      systemInstruction: {
+        parts: [
+          {
+            text: SYSTEM_PROMPT,
+          },
+        ],
+      },
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            label: { type: "STRING", enum: ["REAL", "FAKE"] },
+            confidence: { type: "NUMBER" },
+            realProbability: { type: "NUMBER" },
+            fakeProbability: { type: "NUMBER" },
+            explanation: { type: "STRING" },
+            keyWords: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  word: { type: "STRING" },
+                  score: { type: "NUMBER" },
+                  sentiment: { type: "STRING", enum: ["positive", "negative", "neutral"] }
+                },
+                required: ["word", "score", "sentiment"]
+              }
+            }
+          },
+          required: ["label", "confidence", "realProbability", "fakeProbability", "explanation", "keyWords"]
+        }
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini API error: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+
+  const data = await response.json() as any;
+  const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!content) {
+    throw new Error("Invalid response format from Gemini API: no content found");
+  }
+
+  return parseAIResponse(content);
+}
+
 export async function analyzeNewsWithAI(text: string): Promise<Omit<AnalysisResult, "processingTimeMs"> & { aiPowered: boolean }> {
+  const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+
+  if (geminiApiKey) {
+    try {
+      const ai = await analyzeWithGemini(text, geminiApiKey);
+      const summary = summarizeText(text, 3);
+      return {
+        label: ai.label,
+        confidence: ai.confidence,
+        realProbability: ai.realProbability,
+        fakeProbability: ai.fakeProbability,
+        explanation: ai.explanation,
+        summary,
+        keyWords: ai.keyWords,
+        aiPowered: true,
+      };
+    } catch (err) {
+      console.error("[ai-analyzer] Gemini call failed, trying next provider:", err);
+    }
+  }
+
   const client = getClient();
 
   if (!client) {

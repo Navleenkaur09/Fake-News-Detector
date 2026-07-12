@@ -47,7 +47,7 @@ export default function Predict() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight mb-2">Analysis Terminal</h1>
         <p className="text-muted-foreground">
-          Enter an article body or headline to evaluate its authenticity using GPT-powered AI analysis.
+          Enter an article body or headline to evaluate its authenticity using Google Gemini AI analysis.
         </p>
       </div>
 
@@ -62,7 +62,7 @@ export default function Predict() {
             </CardHeader>
             <CardContent>
               <Textarea
-                placeholder="Paste news content or headline here (minimum 10 characters)..."
+                placeholder="Paste news content, headline, or article URL here..."
                 className="min-h-[250px] resize-y font-mono text-sm leading-relaxed p-4"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -115,7 +115,9 @@ export default function Predict() {
                     <div>
                       <h4 className="font-semibold text-destructive">Analysis Failed</h4>
                       <p className="text-sm text-destructive/90 mt-1">
-                        There was an error processing your request. Please try again.
+                        {(predictMutation.error as any)?.response?.data?.error || 
+                         (predictMutation.error as any)?.message || 
+                         "There was an error processing your request. Please try again."}
                       </p>
                     </div>
                   </CardContent>
