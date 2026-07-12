@@ -11,9 +11,7 @@ import Dashboard from '@/pages/dashboard';
 import { setBaseUrl } from '@workspace/api-client-react';
 
 const isProduction = import.meta.env.PROD;
-const apiBaseUrl = isProduction 
-  ? "https://veritas-web-app.onrender.com" 
-  : "";
+const apiBaseUrl = import.meta.env.VITE_API_URL || (isProduction ? "https://veritas-web-app.onrender.com" : "");
 setBaseUrl(apiBaseUrl);
 
 const queryClient = new QueryClient({
