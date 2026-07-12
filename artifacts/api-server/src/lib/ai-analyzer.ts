@@ -76,7 +76,7 @@ function parseAIResponse(content: string): AIResponse {
 }
 
 async function analyzeWithGemini(text: string, apiKey: string): Promise<AIResponse> {
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   // Truncate to stay within token/char budget if needed, e.g., 8000 chars.
@@ -153,7 +153,7 @@ async function analyzeWithGemini(text: string, apiKey: string): Promise<AIRespon
   return parseAIResponse(content);
 }
 
-export async function analyzeNewsWithAI(text: string): Promise<Omit<AnalysisResult, "processingTimeMs"> & { aiPowered: boolean }> {
+export async function analyzeNewsWithAI(text: string): Promise<Omit<AnalysisResult, "processingTimeMs"> & { aiPowered: boolean, engine?: string }> {
   const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
   if (geminiApiKey) {
@@ -169,6 +169,7 @@ export async function analyzeNewsWithAI(text: string): Promise<Omit<AnalysisResu
         summary,
         keyWords: ai.keyWords,
         aiPowered: true,
+        engine: "Google Gemini 3.5 Flash",
       };
     } catch (err) {
       console.error("[ai-analyzer] Gemini call failed, trying next provider:", err);
@@ -198,7 +199,8 @@ export async function analyzeNewsWithAI(text: string): Promise<Omit<AnalysisResu
           explanation: data.explanation,
           summary: data.summary,
           keyWords: data.keyWords,
-          aiPowered: true,
+          aiPowered: data.aiPowered ?? true,
+          engine: data.engine || "Local ML Model (Passive-Aggressive)",
         };
       }
     } catch (err) {
@@ -207,7 +209,7 @@ export async function analyzeNewsWithAI(text: string): Promise<Omit<AnalysisResu
 
     // No API key and Python server not active — use rule-based fallback
     const result = analyzeNews(text);
-    return { ...result, aiPowered: false };
+    return { ...result, aiPowered: false, engine: "Rule-Based Heuristic Fallback" };
   }
 
   try {
@@ -239,11 +241,12 @@ export async function analyzeNewsWithAI(text: string): Promise<Omit<AnalysisResu
       summary,
       keyWords: ai.keyWords,
       aiPowered: true,
+      engine: "OpenAI GPT-4o-Mini",
     };
   } catch (err) {
     // Fallback to rule-based on any API error
     console.error("[ai-analyzer] OpenAI call failed, falling back to NLP:", err);
     const result = analyzeNews(text);
-    return { ...result, summary: summarizeText(text, 3), aiPowered: false };
+    return { ...result, summary: summarizeText(text, 3), aiPowered: false, engine: "Rule-Based Heuristic Fallback" };
   }
 }

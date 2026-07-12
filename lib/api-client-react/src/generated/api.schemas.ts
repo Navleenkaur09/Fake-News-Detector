@@ -58,6 +58,8 @@ export interface PredictionResult {
   keyWords: KeyWord[];
   /** Whether the result was produced by the AI model (true) or the rule-based fallback (false) */
   aiPowered?: boolean;
+  /** The name of the AI model or engine that made the prediction */
+  engine?: string;
 }
 
 export type PredictionRecordLabel = typeof PredictionRecordLabel[keyof typeof PredictionRecordLabel];

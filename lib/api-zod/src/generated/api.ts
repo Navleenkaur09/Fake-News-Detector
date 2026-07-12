@@ -42,7 +42,8 @@ export const PredictNewsResponse = zod.object({
   "score": zod.number().describe('Influence score (0-1)'),
   "sentiment": zod.enum(['positive', 'negative', 'neutral'])
 })),
-  "aiPowered": zod.boolean().optional().describe('Whether the result was produced by the AI model (true) or the rule-based fallback (false)')
+  "aiPowered": zod.boolean().optional().describe('Whether the result was produced by the AI model (true) or the rule-based fallback (false)'),
+  "engine": zod.string().optional().describe('The name of the AI model or engine that made the prediction')
 })
 
 

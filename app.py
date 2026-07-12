@@ -70,7 +70,7 @@ Rules:
 - explanation must reference specific phrases or patterns found in the text"""
 
 def analyze_with_gemini(text, api_key):
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    model = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     
     truncated = text[:8000] if len(text) > 8000 else text
@@ -797,7 +797,8 @@ def predict():
                 "explanation": res_data["explanation"],
                 "summary": summary,
                 "keyWords": res_data["keyWords"],
-                "aiPowered": True
+                "aiPowered": True,
+                "engine": "Google Gemini 3.5 Flash"
             })
         except Exception as e:
             print(f"[app.py] Gemini inference failed, falling back: {e}")
@@ -827,7 +828,8 @@ def predict():
                 "explanation": explanation,
                 "summary": summary,
                 "keyWords": keywords,
-                "aiPowered": True
+                "aiPowered": True,
+                "engine": "Local ML Model (Passive-Aggressive)"
             })
         except Exception as e:
             print(f"[app.py] Local model inference error: {e}")
@@ -844,7 +846,8 @@ def predict():
         "explanation": rule_data["explanation"],
         "summary": summary,
         "keyWords": rule_data["keyWords"],
-        "aiPowered": False
+        "aiPowered": False,
+        "engine": "Rule-Based Heuristic Fallback"
     })
 
 if __name__ == "__main__":

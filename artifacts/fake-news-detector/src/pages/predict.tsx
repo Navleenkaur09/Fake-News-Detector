@@ -152,12 +152,12 @@ export default function Predict() {
                         {result.aiPowered ? (
                           <span className="flex items-center gap-1 text-primary font-semibold">
                             <Sparkles className="h-3 w-3" />
-                            AI-Powered
+                            {(result as any).engine || "AI-Powered"}
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-muted-foreground">
                             <Cpu className="h-3 w-3" />
-                            Rule-Based
+                            {(result as any).engine || "Rule-Based"}
                           </span>
                         )}
                       </CardDescription>
